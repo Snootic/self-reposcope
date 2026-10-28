@@ -153,6 +153,19 @@ cargo run --release
 5. `./output`に`*.svg`ファイルが出力されていることを確認  
    _Check that the `*.svg` files are generated in the `./output` directory_
 
+### 🦊 Forgejo / Gitea support
+
+Stats can be aggregated from GitHub, Forgejo, or both at once. Forgejo is enabled with:
+
+-   `--forgejo-url` / `FORGEJO_URL`: instance root, e.g. `https://git.example.com`
+-   `--forgejo-token` / `FORGEJO_TOKEN`: access token with `read:repository` and `read:user`
+
+`--token` (GitHub) is now optional, but at least one forge must be configured. A repository with the same name on several forges (e.g. a mirror) is counted once; the first forge listed (GitHub) wins.
+
+```bash
+./self-reposcope --token "$GH_TOKEN" --forgejo-url https://git.example.com --forgejo-token "$FJ_TOKEN"
+```
+
 ### ⚙️ Option: 言語の除外 / Excluding Specific Languages
 
 特定の言語を可視化から除外したい場合は、以下のいずれかの方法で指定できます：

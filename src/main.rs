@@ -1,6 +1,6 @@
 use dotenv::dotenv;
 use reqwest::Client;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 mod get_language_color;
 use get_language_color::load_language_colors;
@@ -9,16 +9,24 @@ mod draw_svg;
 // use draw_svg::generate_svg;
 use draw_svg::generate_compact_svg;
 
-mod fetch_gh_api;
+mod forge;
 use clap::Parser;
-use fetch_gh_api::{fetch_all_repos, get_username};
+use forge::{fetch_all_repos, fetch_languages, get_username, Forge};
 
 #[derive(Parser, Debug)]
-#[command(name = "self-reposcope", about = "GitHub Language Stats Generator")]
+#[command(name = "self-reposcope", about = "GitHub/Forgejo Language Stats Generator")]
 struct Args {
     /// GitHub Token
     #[clap(short, long, env = "GITHUB_TOKEN")]
-    token: String,
+    token: Option<String>,
+
+    /// Forgejo instance URL, e.g. https://git.example.com
+    #[clap(long, env = "FORGEJO_URL", requires = "forgejo_token")]
+    forgejo_url: Option<String>,
+
+    /// Forgejo access token (read:repository + read:user)
+    #[clap(long, env = "FORGEJO_TOKEN", requires = "forgejo_url")]
+    forgejo_token: Option<String>,
 
     /// Comma-separated string-list of languages to exclude
     #[clap(short, long, env = "EXCLUDED_LANGUAGES", default_value = "")]
@@ -29,7 +37,20 @@ struct Args {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     let args = Args::parse();
-    let token = args.token;
+
+    let mut forges: Vec<Forge> = vec![];
+    if let Some(token) = args.token.filter(|t| !t.is_empty()) {
+        forges.push(Forge::github(token));
+    }
+    if let (Some(url), Some(token)) = (args.forgejo_url, args.forgejo_token) {
+        if !url.is_empty() && !token.is_empty() {
+            forges.push(Forge::forgejo(&url, token));
+        }
+    }
+    if forges.is_empty() {
+        return Err("no forge configured: set --token and/or --forgejo-url + --forgejo-token".into());
+    }
+
     let excluded_languages: Vec<String> = args
         .excluded_languages
         .split(',')
@@ -38,63 +59,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     let client = Client::new();
     let mut total_lang_map: HashMap<String, u64> = HashMap::new();
-    let user_name = get_username(&token).await?;
+    // A repo mirrored on several forges must only be counted once (first forge wins).
+    let mut seen_repos: HashSet<String> = HashSet::new();
 
-    match fetch_all_repos(&token).await {
-        Ok(repos) => {
-            println!("Found {} repositories:", repos.len());
-            for repo in repos {
-                if repo.fork {
+    for forge in &forges {
+        let user_name = get_username(&client, forge).await?;
+        let repos = fetch_all_repos(&client, forge).await?;
+        println!("[{}] Found {} repositories:", forge.label(), repos.len());
+
+        for repo in repos {
+            if repo.fork {
+                continue;
+            }
+
+            if repo.owner.owner_type.as_deref() == Some("Organization") {
+                continue; // Organization所有のリポジトリ除外
+            }
+
+            if repo.owner.login != user_name {
+                continue;
+            }
+
+            if !seen_repos.insert(repo.name.to_lowercase()) {
+                println!(" - {} (already counted from another forge, skipped)", repo.name);
+                continue;
+            }
+
+            println!(" - {}", repo.name);
+
+            let lang_map = match fetch_languages(&client, forge, &repo.owner.login, &repo.name).await {
+                Ok(m) => m,
+                Err(e) => {
+                    eprintln!("Failed to fetch languages for {}: {}", repo.name, e);
                     continue;
                 }
+            };
 
-                if repo.owner.owner_type == "Organization" {
-                    continue; // Organization所有のリポジトリ除外
-                }
-
-                if repo.owner.login != user_name {
+            for (lang, bytes) in lang_map {
+                if excluded_languages.iter().any(|excl| excl.eq_ignore_ascii_case(&lang)) {
                     continue;
                 }
-
-                let owner = &repo.owner.login;
-                let url = format!(
-                    "https://api.github.com/repos/{}/{}/languages",
-                    owner, repo.name
-                );
-                println!(" - {}", repo.name);
-
-                let lang_res = client
-                    .get(&url)
-                    .bearer_auth(&token)
-                    .header("User-Agent", "self-reposcope")
-                    .send()
-                    .await?;
-
-                if !lang_res.status().is_success() {
-                    eprintln!(
-                        "Failed to fetch languages for {}: {}",
-                        repo.name,
-                        lang_res.status()
-                    );
-                    continue;
-                }
-
-                let lang_map: HashMap<String, u64> = lang_res.json().await?;
-
-                let filtered_langs: HashMap<String, u64> = lang_map
-                    .clone()
-                    .into_iter()
-                    .filter(|(lang, _)| {
-                        !excluded_languages.iter().any(|excl| excl.eq_ignore_ascii_case(lang))
-                    })
-                    .collect();
-
-                for (lang, bytes) in filtered_langs {
-                    *total_lang_map.entry(lang).or_insert(0) += bytes;
-                }
+                *total_lang_map.entry(lang).or_insert(0) += bytes;
             }
         }
-        Err(e) => eprintln!("Error: {}", e),
     }
     println!("------");
 

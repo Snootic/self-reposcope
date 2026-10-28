@@ -1,0 +1,42 @@
+name: Release Binary (Linux)
+
+on:
+    push:
+        tags:
+            - "v*"
+    workflow_dispatch:
+
+jobs:
+    build-release:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: https://code.forgejo.org/actions/checkout@v4
+
+            - name: Install Rust toolchain
+              shell: bash
+              run: |
+                  curl --proto "=https" --tlsv1.2 --fail --silent --show-error https://sh.rustup.rs -o "$RUNNER_TEMP/rustup-init.sh"
+                  sh "$RUNNER_TEMP/rustup-init.sh" -y --profile minimal --default-toolchain stable
+                  echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+            - name: Build binary
+              shell: bash
+              run: cargo build --release
+
+            - name: Stage release asset
+              shell: bash
+              run: |
+                  mkdir -p release
+                  cp target/release/self-reposcope release/
+
+            - name: Upload binary to Forgejo Release
+              uses: https://code.forgejo.org/forgejo/forgejo-release@v2
+              with:
+                  direction: upload
+                  url: ${{ github.server_url }}
+                  repo: ${{ github.repository }}
+                  tag: ${{ github.ref_name }}
+                  release-dir: release
+                  token: ${{ secrets.FORGEJO_RELEASE_TOKEN }}
