@@ -39,4 +39,4 @@ jobs:
                   repo: ${{ github.repository }}
                   tag: ${{ github.ref_name }}
                   release-dir: release
-                  token: ${{ secrets.FORGEJO_RELEASE_TOKEN }}
+                  token: ${{ secrets.REPOSCOPE_RELEASE_TOKEN }}

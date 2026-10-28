@@ -28,5 +28,5 @@ jobs:
                   ./target/release/self-reposcope \
                     --token "${{ secrets.REPOSCOPE_TOKEN }}" \
                     --forgejo-url "${{ github.server_url }}" \
-                    --forgejo-token "${{ secrets.FORGEJO_TOKEN }}" \
+                    --forgejo-token "${{ secrets.REPOSCOPE_FORGEJO_TOKEN }}" \
                     --excluded-languages "${{ secrets.EXCLUDED_LANGUAGES }}"
