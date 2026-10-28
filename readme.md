@@ -160,6 +160,8 @@ Stats can be aggregated from GitHub, Forgejo, or both at once. Forgejo is enable
 -   `--forgejo-url` / `FORGEJO_URL`: instance root, e.g. `https://git.example.com`
 -   `--forgejo-token` / `FORGEJO_TOKEN`: access token with `read:repository` and `read:user`
 
+GitHub stats are fetched through the GraphQL API (one request per 50 repos, with language colors; forks and organization repos are excluded). Forgejo has no GraphQL, so it uses REST with one request per repo. Set `--github-api-url` / `SELF_REPOSCOPE_GITHUB_API_URL` for GitHub Enterprise.
+
 `--token` (GitHub) is now optional, but at least one forge must be configured. A repository with the same name on several forges (e.g. a mirror) is counted once; the first forge listed (GitHub) wins.
 
 ```bash
@@ -204,3 +206,15 @@ EXCLUDED_LANGUAGES="Jupyter Notebook, HTML, CSS"
 ---
 
 <small>2025 [Aoki Mizuki](https://github.com/4okimi7uki) – Developed with 🍭 and a sense of fun.</small>
+
+## Using the released binary
+
+Tagging `vX.Y.Z` builds `self-reposcope` and attaches it to the release on both GitHub and Forgejo. Other repos can fetch it with:
+
+```bash
+# GitHub
+curl --fail -L https://github.com/Snootic/self-reposcope/releases/latest/download/self-reposcope -o self-reposcope
+# Forgejo
+curl --fail -L https://<forgejo-host>/snootic/self-reposcope/releases/latest/download/self-reposcope -o self-reposcope
+chmod +x self-reposcope
+```

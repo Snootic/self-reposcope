@@ -11,7 +11,7 @@ use draw_svg::generate_compact_svg;
 
 mod forge;
 use clap::Parser;
-use forge::{fetch_all_repos, fetch_languages, get_username, Forge};
+use forge::{fetch_stats, Forge};
 
 #[derive(Parser, Debug)]
 #[command(name = "self-reposcope", about = "GitHub/Forgejo Language Stats Generator")]
@@ -19,6 +19,10 @@ struct Args {
     /// GitHub Token
     #[clap(short, long, env = "GITHUB_TOKEN")]
     token: Option<String>,
+
+    /// GitHub API root (override for GitHub Enterprise)
+    #[clap(long, env = "SELF_REPOSCOPE_GITHUB_API_URL", default_value = "https://api.github.com")]
+    github_api_url: String,
 
     /// Forgejo instance URL, e.g. https://git.example.com
     #[clap(long, env = "FORGEJO_URL", requires = "forgejo_token")]
@@ -40,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut forges: Vec<Forge> = vec![];
     if let Some(token) = args.token.filter(|t| !t.is_empty()) {
-        forges.push(Forge::github(token));
+        forges.push(Forge::github(&args.github_api_url, token));
     }
     if let (Some(url), Some(token)) = (args.forgejo_url, args.forgejo_token) {
         if !url.is_empty() && !token.is_empty() {
@@ -62,40 +66,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // A repo mirrored on several forges must only be counted once (first forge wins).
     let mut seen_repos: HashSet<String> = HashSet::new();
 
+    let mut color_map = load_language_colors();
+
     for forge in &forges {
-        let user_name = get_username(&client, forge).await?;
-        let repos = fetch_all_repos(&client, forge).await?;
-        println!("[{}] Found {} repositories:", forge.label(), repos.len());
+        let stats = fetch_stats(&client, forge).await?;
+        println!("[{}] Found {} repositories:", forge.label(), stats.repos.len());
+        // Colors reported by the forge are authoritative over the embedded table.
+        color_map.extend(stats.colors);
 
-        for repo in repos {
-            if repo.fork {
-                continue;
-            }
-
-            if repo.owner.owner_type.as_deref() == Some("Organization") {
-                continue; // Organization所有のリポジトリ除外
-            }
-
-            if repo.owner.login != user_name {
-                continue;
-            }
-
+        for repo in stats.repos {
             if !seen_repos.insert(repo.name.to_lowercase()) {
                 println!(" - {} (already counted from another forge, skipped)", repo.name);
                 continue;
             }
-
             println!(" - {}", repo.name);
 
-            let lang_map = match fetch_languages(&client, forge, &repo.owner.login, &repo.name).await {
-                Ok(m) => m,
-                Err(e) => {
-                    eprintln!("Failed to fetch languages for {}: {}", repo.name, e);
-                    continue;
-                }
-            };
-
-            for (lang, bytes) in lang_map {
+            for (lang, bytes) in repo.languages {
                 if excluded_languages.iter().any(|excl| excl.eq_ignore_ascii_case(&lang)) {
                     continue;
                 }
@@ -113,7 +99,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!(" {}. {}: {} bytes", i + 1, lang, bytes);
     }
 
-    let color_map = load_language_colors();
     // generate_svg(&lang_vec, &color_map, "output/language_chart.svg")?;
     generate_compact_svg(&lang_vec, &color_map, "output/full_languages.svg")?;
 
