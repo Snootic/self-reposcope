@@ -54,8 +54,8 @@ tspan {
 </defs>
 <rect width="370" height="10" x="20" y="60" rx="5" ry="5" fill='#ccc' />
 <g clip-path="url(#roundedClip)">
-    <rect x="20" y="60" width="104" height="10" fill="#3572A5"> <title>Python 28.08%</title> </rect>
-    <rect x="124" y="60" width="99" height="10" fill="#3178c6"> <title>TypeScript 26.66%</title> </rect>
+    <rect x="20" y="60" width="104" height="10" fill="#3572A5"> <title>Python 28.09%</title> </rect>
+    <rect x="124" y="60" width="99" height="10" fill="#3178c6"> <title>TypeScript 26.67%</title> </rect>
     <rect x="223" y="60" width="90" height="10" fill="#DA5B0B"> <title>Jupyter Notebook 24.32%</title> </rect>
     <rect x="313" y="60" width="40" height="10" fill="#dea584"> <title>Rust 10.72%</title> </rect>
     <rect x="353" y="60" width="14" height="10" fill="#663399"> <title>CSS 3.72%</title> </rect>
@@ -70,9 +70,9 @@ tspan {
 </g>
 <g id="lang_legend">
 <circle cx="30" cy="100" r="6" fill="#3572A5" />
-<text x="46" y="104" font-size="13" font-family="system-ui, -apple-system, sans-serif" fill='currentColor'><tspan>Python</tspan> 28.08%</text>
+<text x="46" y="104" font-size="13" font-family="system-ui, -apple-system, sans-serif" fill='currentColor'><tspan>Python</tspan> 28.09%</text>
 <circle cx="225" cy="100" r="6" fill="#3178c6" />
-<text x="241" y="104" font-size="13" font-family="system-ui, -apple-system, sans-serif" fill='currentColor'><tspan>TypeScript</tspan> 26.66%</text>
+<text x="241" y="104" font-size="13" font-family="system-ui, -apple-system, sans-serif" fill='currentColor'><tspan>TypeScript</tspan> 26.67%</text>
 <circle cx="30" cy="124" r="6" fill="#DA5B0B" />
 <text x="46" y="128" font-size="13" font-family="system-ui, -apple-system, sans-serif" fill='currentColor'><tspan>Jupyter Notebook</tspan> 24.32%</text>
 <circle cx="225" cy="124" r="6" fill="#dea584" />
